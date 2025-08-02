@@ -16,7 +16,7 @@ The project was split into three parts:
 
 ### Part 1: Data Description and Descriptive Statistics
 - Describe characteristics of variables.
-- Visualize using plots.
+- Visualize and analyze variables using plots.
 - Check for correlation between variables using correlation matrix.
 
 ### Part 2: Simple Linear Regression
