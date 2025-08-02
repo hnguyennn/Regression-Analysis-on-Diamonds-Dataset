@@ -1,0 +1,340 @@
+---
+title: "Regression Analysis on Diamonds Dataset"
+author: "Hannah Nguyen"
+date: "2025-06-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In this project, I explored how to create regression models by analyzing the diamonds dataset obtained from **[Kaggle](https://www.kaggle.com/datasets/nancyalaswad90/diamonds-prices?resource=download)**. I learned how to approach creating regression models and ways to linearize the model. I also explored other methods, like backwards elimination with AIC and variable inflation factor (VIF), in creating the best regression model to predict diamond prices. 
+
+## Part 1: Data Description and Descriptive Statistics
+
+First, I read in the data and created the corresponding dataframe. I also downloaded the necessary packages used throughout the project.
+
+```{r, message = FALSE}
+# Download necessary packages
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(MASS) # for stepAIC
+library(car) # for VIF
+library(knitr) # for visualization
+set.seed(06042025) # for reproducibility
+
+# Read in the data and create a dataframe
+
+diamonds_data <- read_csv("Diamonds_Prices2022.csv")
+diamonds_dataframe <- data.frame(carat = diamonds_data$carat,
+                                 cut = diamonds_data$cut,
+                                 color = diamonds_data$color,
+                                 clarity = diamonds_data$clarity,
+                                 depth = diamonds_data$depth,
+                                 table = diamonds_data$table,
+                                 price = diamonds_data$price,
+                                 x = diamonds_data$x, 
+                                 y = diamonds_data$y,
+                                 z = diamonds_data$z)
+
+
+```
+
+## 1) Select a random sample
+
+```{r}
+sample_df <- sample_n(diamonds_dataframe, 1000, )
+str(sample_df)
+```
+In this dataframe, there are 10 different variables. 3 are categorical, cut, color, and clarity, while 7 are numerical, carat, depth, table, price, x, y, and z. I selected a random sample of 1000 observations from the main data frame.
+
+## 2) Describing each variable
+
+```{r}
+# Summary
+kable(t(summary(sample_df)))
+```
+
+Carat is a numerical variable with a minimum value of 0.23 and maximum value of 3.04. It has a median of 0.7 and mean of 0.79.
+
+Cut is a categorical variable taking values "Fair", "Good", "Very Good", "Ideal", or "Premium".
+
+Color is a categorical variable taking values "D", "E", "F", "G", "H", or "I".
+
+Clarity is a categorical variable taking values "I1", "IF", "SI1", "SI2", "VS1", "VS2", "VVS1", or "VVS2".
+
+Depth is a numerical variable with a minimum value of 56.80 and maximum value of 68.70. It has a median of 61.90 and a mean of 61.73.
+
+Table is a numerical variable with a minimum value of 44.00 and maximum value of 66.00. It has a median of 57.00 and a mean of 57.43.
+
+Price is a numerical variable with a minimum value of 377 and maximum value of 18788. It has a median of 2455 and a mean of 3888.
+
+X is a numerical variable with a minimum value of 3.93 and maximum value of 9.51. It has a median of 5.69 and a mean of 5.72.
+
+Y is a numerical variable with a minimum value of 3.95 and maximum value of 9.46. It has a median of 5.72 and a mean of 5.726.
+
+Z is a numerical variable with a minimum value of 0.00 and maximum value of 5.62. It has a median of 3.52 and a mean of 3.528.
+
+
+### Histogram and Barplots
+
+
+Next, I created a histogram for one continuous variable and described it.
+
+
+```{r, fig.show = "hold", out.width = "50%"}
+# Histograms for continuous variables
+hist(sample_df$carat, main = paste("Histogram of Carat Values"))
+```
+
+The distribution for carat appears to be right-skeId, with a right tail. Most of the values seem to be within the 0.5-1.5 range, while feIr values are closer towards 3.0.
+
+Next, I created a barplot containing all categorical random variables, folloId by a description of each variable.
+
+```{r}
+# Bar Plot for categorical random variables
+
+df_categorical <- sample_df %>% dplyr::select(cut, color, clarity)
+
+D_cat <- df_categorical %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Category")
+kable(head(D_cat))
+
+# Creating a bar plot
+ggplot(D_cat, aes(x = Category, fill = Category)) +
+  geom_bar() + 
+  facet_wrap(~ Variable, scales = "free_x") +
+  theme_minimal() + 
+  labs(title = "Bar Plot of Cut, Color, and Clarity",
+       x = "Category",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Based on the bar plots, Clarity appears to have high frequency with the "SL1" and "VS2" values. On both ends of the plot, the frequency decreases. For Color, the highest frequency is with values "G" and "E", while the loIst is with value "J". Lastly, for Cut, the highest frequency is with values "Ideal", folloId by "Premium" and "Very Good", while the least frequent values are "Good" and "Fair".
+
+## 3) Correlation between Variables
+
+To determine whether there is any correlation between the variables, I dropped the categorical variables from the dataset and checked the correlation matrix.
+
+```{r}
+# Drop the categorical columns from sample_df
+quantitative_sample_df <- sample_df %>%
+  dplyr::select(-cut, -color, -clarity)
+
+# Check the correlation matrix
+kable(cor(quantitative_sample_df))
+```
+
+Based on the correlation matrix, the variables Carat and Price have high correlation with a coefficient of 0.923. Carat and X is also highly correlated with 0.979, as well as Carat and Y with 0.977. Price and X are highly correlated with coefficient 0.892, as well as Price and Y with 0.894. X and Y are highly correlated with coefficient 0.999. Z is highly correlated with Carat with a coefficient of 0.933, as well as Z and Price with coefficient 0.847. Z and X are highly correlated with a coefficient of 0.96, as well as Z and Y with coefficient 0.96.
+
+## 4) Run the full model
+
+First, I ran the full linear model, using each variable and viewed the results.
+
+```{r}
+full_mod <- lm(price ~ carat + cut + color + clarity + depth + table + x + y + z,
+               data = sample_df)
+kable(summary(full_mod)$coefficients)
+```
+
+## 5) Comments
+
+The data surprised me, since based on the correlation matrix, Z was highly correlated with most of the other numerical variables, while depth and table was not highly correlated with any of the other numerical variables.
+
+# Part 2: Simple Linear Regression 
+
+## 1) One Variable linear model
+
+I first started with one predictor variable, carat, and created a linear model using it.
+
+```{r}
+slr <- lm(price ~ carat, data = sample_df)
+```
+
+## 2) Summary
+
+Next, I ran a summary on the model. I described each coefficient and the output
+
+```{r}
+summary(slr)
+```
+
+The function under Call: lm(formula = price ~ carat, data = sample_df) is the name of the formula being used. The values under Residuals show the min, first quartile, median, 3rd quartile, and maximum residuals.
+
+Under Coefficients:,
+The intercept estimate is -2253.27, so if the carat value is 0, then the price is expected to be -\$2253.27. The average deviation of the estimated coefficient from its true population value is \$91.73. The hypothesis testing involves testing the hypothesis, $H_0: \beta_0 = 0 \ vs \  H_A: \beta_0 \neq 0$, where the t-statistic obtained was -24.56 with a p-value of <2e-16. The t-value is how many standard errors the estimated coefficient is from 0. The p-value helps us determine if the observed relationship could have occurred by chance or if there is strong evidence to support the effect. Since the p-value < $\alpha = 0.05$, I reject the null hypothesis and conclude that there is significant evidence that $\beta_0 \neq 0$, meaning the parameter estimator should be included in the model.
+
+The carat coefficient estimate is \$7755.31. For every 1.0 carat value increase, the price is expected to increase by \$7755.31. The average deviation of the estimated coefficient from its true population value is \$99.69. The hypothesis testing involves testing the hypothesis, $H_0: \beta_0 = 0 \ vs \  H_A: \beta_0 \neq 0$, where the t-statistic obtained was 77.80 with a p-value of <2e-16. The t-value is how many standard errors the estimated coefficient is from 0. The p-value helps us determine if the observed relationship could have occurred by chance or if there is strong evidence to support the effect. Since the p-value < $\alpha = 0.05$, I reject the null hypothesis and conclude that there is significant evidence that $\beta_0 \neq 0$, meaning the parameter estimator should be included in the model.
+
+The residual standard error is 1477, the average deviation of the actual data points from the predicted values by the model, where loIr value means predictions are closer to the actual data points on average, with 998 degrees of freedom. The multiple R-squared is 0.8584, which means that 85.84% of the variance in the price is explained by the carat predictor through the linear model. The adjusted R-squared is 0.8583, which means that 85.83% of the variance in the price is explained by the combination of predictor variables through the linear model. The F-statistic is 6052 with 1 predictor and 998 degrees of freedom with p-value <2.2e-16. At $\alpha = 0.05$, I rejected the null hypothesis, since the p-value, <2.2e-16, is less than $\alpha = 0.05$. I concluded that this model explains a significant amount of variance in the price.
+
+### Confidence Intervals
+
+Then, I created confidence and prediction intervals, using a sample value of 0.5 carats.
+
+```{r}
+# Confidence Interval
+confint(slr, level = .95)
+
+# Confidence and Prediction Interval 
+test_df <- data.frame(carat = 0.5)
+predict(slr, newdata = test_df, level = .95, interval = "confidence")
+predict(slr, newdata = test_df, level = .95, interval = "prediction")
+```
+
+The estimated value of the intercept is expected to be between -2303.548 and -1928.422 with 95% confidence. Since the interval doesn't contain 0, this implies that this coefficient is significant.
+
+The estimated value of the carat coefficient is expected to be between 7344.076 and 7733.388 with 95% confidence. Since the interval doesn't contain 0, this implies that this coefficient is significant.
+
+Prediction intervals show where the expected price value would be for a given carat value. For example, for a diamond with 0.5 carats, the expected price is \$1653.38 with a 95% confidence interval of [1516.38, 1732.38] and a 95% prediction interval of [-1276,40, 4525.17]
+
+For the plots generated by the plot() function, Residuals vs. Fitted is used to check the linearity of the model. If the red line is not straight and centered near 0, then it would indicate that there is nonlinearity. The QQ plot is used to check for normality of the errors, where it plots the sample quantiles of the residuals against theoretical quantiles. The Scale-Location plot is used to check whether the spread of residuals is constant, which would imply constant variance or homoscedasticity. The Residuals vs Leverage plot checks for any points with high leverage and large residuals that can significantly influence the regression model.
+
+## 3) Linear Model Transformation
+
+To ensure that the regression model is linear, I performed various transformations on the model to ensure linearity between the dependent variable, price, and independent variable, carat.
+
+```{r, fig.align='center', fig.width=8, fig.height=8}
+par(mfrow = c(2, 2))
+# Check the 4 plots
+plot(slr)
+```
+
+Since the residuals vs. fitted plot isn't linear, I will have to transform the predictor variable, carat. Carat's max/min > 10, so a log transformation will be appropriate.
+
+```{r, fig.align='center', fig.width=8, fig.height=8}
+par(mfrow = c(2, 2))
+slr_transformed <- lm(price ~ log(carat), data = sample_df)
+
+plot(slr_transformed)
+```
+
+To fix the inconsistency of the variance, I would log transform the dependent variable as well.
+
+```{r, fig.align='center', fig.width=8, fig.height=8}
+par(mfrow = c(2, 2))
+slr_transformed <- lm(log(price) ~ log(carat), data = sample_df)
+plot(slr_transformed)
+```
+
+From the Residuals vs. Fitted values plot, since the red line is mostly flat and centered around zero, with the residuals spread staying consistent around the line, it meets the linearity and homoscedacity assumptions. The normality assumptions are also met since the theoretical quantiles vs standardized residuals follow the linear line.
+
+## 4) Summary of the Transformed Linear Model
+
+```{r}
+
+summary(slr_transformed) 
+```
+
+Log transformation was performed on both the independent variable (carat) and dependent variable (price). Comparing back with the slr model, the intercept changed from -2253.27 to 8.454. The carat variable's coefficient was 7755.31, while log(carat) was 1.676128. The standard errors had been drastically decreased from the slr model to the slr_transformed model. 
+
+The multiple R squared of the slr model was 0.8584 and adjusted R squared was 0.8583. For the slr_transformed model, the multiple R squared was 0.9337, while the adjusted R squared was 0.9336, so both the multiple R squared and adjusted R squared increased after transforming the independent and dependent variables.
+
+## 5) Adding variables to the Simple Linear Regression Model
+
+To transform the simple linear regression model to a multilinear regression model, I added the rest of the predictor variables and individually checked if they contributed to increasing the adjusted R squared. If they did not or only increased it minimally, they were excluded. Below, I showed the final model.
+
+```{r}
+regression_model <- lm(log(price) ~ log(carat) + table + depth + 
+                         cut + color + clarity + x + y, data = sample_df)
+summary(regression_model)
+```
+
+After adding predictors and testing whether the adjusted R squared increased, I reach a final model for dependent variable, log(price), with predictors log(carat), table, depth, cut, color, clarity, x, and y. For every 1% increase in the carat value, I would expect the log(price) to increase by 1.82%, while holding other variables constant. The p-value is <2e-16, so it indicates that it is significant to the model at $\alpha = 0.05$. The p-values indicate how significant the coefficients are, for example, the coefficient, table, has a p-value of 0.667, which would indicate that it is not statistically significant to include in the model, even though the adjusted R squared increased slightly with that predictor added. I achieved an adjusted R squared of 0.9831, while the previous model with only log(carat) had an adjusted R squared of 0.9336. Since the new model's adjusted R squared is higher, the model explains more variance in the log(price) variable (98.31%) with the combination of the independent variables through the linear model.
+
+The residual standard error is 0.1305, the average deviation of the actual data points from the predicted values by the model, where loIr value means predictions are closer to the actual data points on average, with 977 degrees of freedom. The F-statistic is 2637 with 22 predictors and 977 degrees of freedom with p-value <2.2e-16. At $\alpha = 0.05$, I reject the null hypothesis, since the p-value, <2.2e-16, is less than $\alpha = 0.05$. I conclude that this model explains a significant amount of variance in the price.
+
+## 6) Comments
+
+I noticed that clarity contributed a significant portion to the adjusted R squared. Some variables, like Z, did not affect or contribute significantly to the adjusted R squared, so they were dropped from the model. I found it interesting that log transformation on the independent and dependent variables help fix the variance and linearity of the model.
+
+# Part 3: Regression Model using Backwards Elimination
+
+## 1) Using Backwards AIC Method
+
+Using the multilinear regression model from earlier, I performed backwards elimination with AIC on the model to calculate which variables are unnecessary and needed to be removed.
+
+```{r}
+step_aic <- stepAIC(regression_model, direction = "backward", trace = FALSE)
+summary(step_aic)
+```
+
+Using the backwards elimination method with AIC, I noticed that the model only kept cut, color, clarity, X, and Y. It dropped table and depth, which I thought was interesting because I added it to my previous model since I noticed that they had increased adjusted R squared, but it's p-value was high, indicating that it was best to drop them from the model.
+
+## 2) Checking Variance Inflation Factor (VIF)
+
+To check for possible correlation between the variables, I used the VIF() function on step_aic. I decided to remove predictor variables whos VIF was greater than 5.
+
+```{r}
+vif_vals <- vif(step_aic)
+vif_adj <- vif_vals[, "GVIF^(1/(2*Df))"]
+
+high_vif <- vif_adj[vif_adj > 5]
+
+high_vif
+```
+
+Since log(carat), x, and y have high VIF over 5, I will start by removing the predictor x, then checking the VIF again.
+
+```{r}
+test <- lm(formula = log(price) ~ log(carat) + cut + color + clarity + y, data = sample_df)
+
+vif_vals <- vif(test)
+vif_adj <- vif_vals[, "GVIF^(1/(2*Df))"]
+
+high_vif <- vif_adj[vif_adj > 5]
+
+high_vif
+```
+
+The VIF is high for the y predictor, so I will remove that, since log(carat) was our transformed variable from earlier.
+
+```{r}
+final_model <- lm(formula = log(price) ~ log(carat) + cut + color + clarity, data = sample_df)
+
+vif_vals <- vif(test)
+vif_adj <- vif_vals[, "GVIF^(1/(2*Df))"]
+
+high_vif <- vif_adj[vif_adj > 5]
+
+high_vif
+```
+
+There are no more predictors with high VIF, so this would be the best model obtained by AIC backwards selection method.
+
+## 3) Interpreting Confidence and Prediction Intervals
+
+Using a sample observation with fixed values, I found its confidence and prediction intervals, then interpreted them.
+
+```{r}
+# Create one combination of X's
+
+one_obs <- data.frame(
+  carat = 0.33,
+  cut = "Ideal",
+  color = "E",
+  clarity = "VS2"
+)
+
+# Prediction Intervals
+predict(final_model, newdata = one_obs, interval = "prediction")
+
+# Confidence Intervals
+predict(final_model, newdata = one_obs, interval = "confidence")
+```
+
+For a diamond with 0.33 carats, "Ideal" cut, "E" color, and "VS2" clarity, its expected log(price) is \$6.61 with a 95% prediction interval of [6.357, 6.873] and a 95% confidence interval of [6.588, 6.641].
+
+## 4) Final Summary
+
+First, I started by analyzing the diamonds dataset and its variables and their corresponding values. I then took a random sample of 1000 observations to use in the rest of our analyses. I checked for multicollinearity between any of the variables.
+
+Next, I worked with the simple linear regression model, consisting of only the dependent variable, price, and a predictor variable, carat. I interpreted the output and proceeded to perform the necessary transformations on the variables to ensure it follows the assumptions of a linear regression model. I then continued adding more predictor variables to the simple linear regression model to turn it into a multiple linear regression model and increase its adjusted R squared.
+
+Lastly, I performed backward elimination using AIC method to find the best model. I called the VIF function on it to test for multicollinearity between the predictors and dropped the X and Y predictor as necessary. Next, I created a test observation with sample values to calculate its confidence and prediction intervals.
