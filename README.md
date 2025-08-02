@@ -1,7 +1,8 @@
 # PSTAT 126 - Regression Analysis Final Project, Spring 2025
 
 ## Overview
-This project was completed as part of the PSTAT 122 course at University of California, Santa Barbara, taught by Professor Puja Pandey. 
+This project was completed as part of the PSTAT 126 course at University of California, Santa Barbara, taught by Professor Puja Pandey. The goal of this project was to 
+apply knowledge from the class towards a real world context by working with regression models, analyzing the dataset, and evaluating the model's performance.
 
 ## Objectives
 - Describe and analyze the variables in the dataset.
